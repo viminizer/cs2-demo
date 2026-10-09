@@ -1,0 +1,78 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CS2 demos</title>
+<style>
+  body { font: 15px system-ui, sans-serif; background: #15171c; color: #e6e6e6; max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  input { width: 100%; box-sizing: border-box; padding: 10px; font: inherit; background: #1f232b; color: inherit; border: 1px solid #333a46; border-radius: 6px; }
+  .cols { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-top: 12px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 8px 10px; border-radius: 6px; cursor: pointer; overflow-wrap: anywhere; }
+  li:hover { background: #262b35; }
+  li.on { background: #2f5d9e; }
+  small { color: #8a93a3; display: block; }
+  button { margin-top: 12px; width: 100%; padding: 12px; font: inherit; font-weight: 600; background: #d98a1e; color: #111; border: 0; border-radius: 6px; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  #msg { margin-top: 12px; white-space: pre-wrap; }
+  #msg.err { color: #ff7b72; }
+  @media (max-width: 600px) { .cols { grid-template-columns: 1fr; } }
+</style>
+<h1>CS2 demos</h1>
+<input id="q" placeholder="Filter..." autofocus>
+<div class="cols">
+  <ul id="demos"></ul>
+  <div>
+    <ul id="files"></ul>
+    <button id="play" disabled>Play</button>
+    <div id="msg"></div>
+  </div>
+</div>
+<script>
+let demos = [], demo = null, file = null;
+const $ = id => document.getElementById(id);
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const text = await r.text();
+  if (!r.ok) throw new Error(text);
+  return JSON.parse(text);
+}
+function msg(text, err) { $('msg').textContent = text; $('msg').className = err ? 'err' : ''; }
+
+function item(label, sub, on, click) {
+  const li = document.createElement('li');
+  li.textContent = label;
+  if (sub) li.append(Object.assign(document.createElement('small'), { textContent: sub }));
+  li.className = on ? 'on' : '';
+  li.onclick = click;
+  return li;
+}
+
+function renderDemos() {
+  const q = $('q').value.toLowerCase();
+  $('demos').replaceChildren(...demos.filter(d => d.name.toLowerCase().includes(q)).map(d =>
+    item(d.name, new Date(d.mod).toLocaleString() + ' - ' + (d.size / 1e6).toFixed(0) + ' MB', d === demo, () => pick(d))));
+}
+
+async function pick(d) {
+  demo = d; file = null; $('play').disabled = true; renderDemos(); msg('');
+  try {
+    const files = await api('/api/files?demo=' + encodeURIComponent(d.name));
+    const render = () => $('files').replaceChildren(...files.map(f =>
+      item(f, '', f === file, () => { file = f; $('play').disabled = false; render(); })));
+    if (files.length === 1) { file = files[0]; $('play').disabled = false; }
+    render();
+  } catch (e) { $('files').replaceChildren(); msg(e.message, true); }
+}
+
+$('play').onclick = async () => {
+  $('play').disabled = true; msg('Loading...');
+  try {
+    msg(await api('/api/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ demo: demo.name, file }) }));
+  } catch (e) { msg(e.message, true); }
+  $('play').disabled = false;
+};
+
+$('q').oninput = renderDemos;
+api('/api/demos').then(d => { demos = d; renderDemos(); }).catch(e => msg(e.message, true));
+</script>
