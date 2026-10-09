@@ -33,16 +33,19 @@ const (
 
 var (
 	demoDir  = flag.String("demos", filepath.Join(os.Getenv("USERPROFILE"), "Downloads"), "folder with downloaded demos")
-	steamDir = flag.String("steam", `C:\Program Files (x86)\Steam`, "Steam install folder")
+	steamDir = flag.String("steam", "", "Steam install folder (default: read from the registry)")
 	port     = flag.Int("port", 7350, "web UI port")
 	csgoDir  string
 )
 
 func main() {
 	flag.Parse()
+	if *steamDir == "" {
+		*steamDir = findSteam()
+	}
 	var err error
 	if csgoDir, err = findCSGO(*steamDir); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 	log.Printf("demos: %s\ncs2:   %s", *demoDir, csgoDir)
 
@@ -64,9 +67,33 @@ func main() {
 	}))
 
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
-	log.Printf("open http://%s", addr)
-	exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://"+addr).Start()
-	log.Fatal(http.ListenAndServe(addr, nil))
+	ln, err := net.Listen("tcp", addr)
+	openBrowser := exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://"+addr).Start
+	if err != nil {
+		// Probably already running: just show the open one.
+		openBrowser()
+		return
+	}
+	log.Printf("open http://%s (close this window to stop)", addr)
+	openBrowser()
+	fatal(http.Serve(ln, nil))
+}
+
+// fatal keeps the window open so a double-clicked exe shows the error.
+func fatal(err error) {
+	log.Print(err)
+	fmt.Print("Press Enter to exit")
+	fmt.Scanln()
+	os.Exit(1)
+}
+
+// findSteam reads the Steam folder from the registry, falling back to the default path.
+func findSteam() string {
+	out, _ := exec.Command("reg", "query", `HKCU\Software\Valve\Steam`, "/v", "SteamPath").Output()
+	if m := regexp.MustCompile(`SteamPath\s+REG_SZ\s+(.+)`).FindStringSubmatch(string(out)); m != nil {
+		return filepath.FromSlash(strings.TrimSpace(m[1]))
+	}
+	return `C:\Program Files (x86)\Steam`
 }
 
 func handle(f func(*http.Request) (any, error)) http.HandlerFunc {
