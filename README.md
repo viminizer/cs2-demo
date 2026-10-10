@@ -6,8 +6,8 @@ Pick a downloaded CS2 demo in your browser and play it in the game. No more typi
 
 ## Install
 
-1. Download `cs2-demo.exe` from the [latest release](https://github.com/viminizer/cs2-demo/releases/latest).
-2. Double-click `cs2-demo.exe`. Windows may warn you because the file is not signed: click **More info → Run anyway**.
+1. Download `cs2-demo-<version>.exe` from the [latest release](https://github.com/viminizer/cs2-demo/releases/latest).
+2. Double-click it. Windows may warn you because the file is not signed: click **More info → Run anyway**.
 
 ## Use
 
@@ -24,9 +24,9 @@ Demos are extracted to `game\csgo\dl\` with a short name. Delete that folder whe
 ## Options
 
 ```
-cs2-demo.exe -demos D:\demos      folder with your demos (default: Downloads)
-cs2-demo.exe -steam D:\Steam      Steam folder (default: read from the registry)
-cs2-demo.exe -port 7350           web UI port
+cs2-demo-<version>.exe -demos D:\demos      folder with your demos (default: Downloads)
+cs2-demo-<version>.exe -steam D:\Steam      Steam folder (default: read from the registry)
+cs2-demo-<version>.exe -port 7350           web UI port
 ```
 
 ## Build
@@ -34,3 +34,5 @@ cs2-demo.exe -port 7350           web UI port
 ```
 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o cs2-demo.exe .
 ```
+
+To release, run `./release.sh v0.0.7 "notes"`. It builds `cs2-demo-v0.0.7.exe` and publishes it.
