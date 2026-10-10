@@ -18,6 +18,7 @@
   button:disabled { opacity: .4; cursor: default; }
   #msg { margin-top: 12px; white-space: pre-wrap; }
   #msg.err { color: #ff7b72; }
+  #log { margin-top: 12px; font: 12px ui-monospace, monospace; color: #8a93a3; white-space: pre-wrap; overflow-wrap: anywhere; }
   @media (max-width: 600px) { .cols { grid-template-columns: 1fr; } }
 </style>
 <h1><img src="/logo.svg" alt="">CS2 demos <small>{{version}}</small></h1>
@@ -29,6 +30,7 @@
     <button id="play" disabled>Play</button>
     <div id="msg"></div>
     <button id="restart" hidden>Restart CS2 and play</button>
+    <div id="log"></div>
   </div>
 </div>
 <script>
@@ -74,8 +76,22 @@ async function play(restart) {
   msg(restart ? 'Restarting CS2...' : 'Loading...');
   try {
     msg(await api('/api/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ demo: demo.name, file, restart }) }));
+    watchLog();
   } catch (e) { msg(e.message, true); $('restart').hidden = e.status !== 409; }
   $('play').disabled = false;
+}
+
+// Show what CS2 says about the demo for 2 minutes after a launch.
+let logTimer;
+function watchLog() {
+  clearInterval(logTimer);
+  $('log').textContent = 'Game log (demo lines):\nwaiting for CS2...';
+  const end = Date.now() + 120000;
+  logTimer = setInterval(async () => {
+    if (Date.now() > end) return clearInterval(logTimer);
+    const lines = await api('/api/log').catch(() => []);
+    if (lines.length) $('log').textContent = 'Game log (demo lines):\n' + lines.join('\n');
+  }, 2000);
 }
 $('play').onclick = () => play(false);
 $('restart').onclick = () => play(true);

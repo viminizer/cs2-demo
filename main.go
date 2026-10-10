@@ -76,10 +76,11 @@ func main() {
 		}
 		return play(filepath.Join(*demoDir, filepath.Base(req.Demo)), req.File, req.Restart)
 	}))
+	http.HandleFunc("/api/log", handle(func(r *http.Request) (any, error) { return gameLog(), nil }))
 
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
 	ln, err := net.Listen("tcp", addr)
-	openBrowser := exec.Command("cmd", "/c", "start", "", "http://"+addr).Start // start follows the default browser setting
+	openBrowser := func() { openURL("http://" + addr) }
 	if err != nil {
 		// Probably already running: just show the open one.
 		openBrowser()
@@ -96,6 +97,21 @@ func fatal(err error) {
 	fmt.Print("Press Enter to exit")
 	fmt.Scanln()
 	os.Exit(1)
+}
+
+// openURL opens url in the browser the user picked for https links.
+// "start" alone opened Edge for a user whose default browser is Chrome.
+func openURL(url string) {
+	out, _ := exec.Command("reg", "query", `HKCU\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice`, "/v", "ProgId").Output()
+	if m := regexp.MustCompile(`ProgId\s+REG_SZ\s+(\S+)`).FindStringSubmatch(string(out)); m != nil {
+		out, _ = exec.Command("reg", "query", `HKCR\`+m[1]+`\shell\open\command`, "/ve").Output()
+		if m := regexp.MustCompile(`REG_SZ\s+"([^"]+\.exe)"`).FindStringSubmatch(string(out)); m != nil {
+			if exec.Command(m[1], url).Start() == nil {
+				return
+			}
+		}
+	}
+	exec.Command("cmd", "/c", "start", "", url).Start()
 }
 
 // findSteam reads the Steam folder from the registry, falling back to the default path.
@@ -264,11 +280,39 @@ func play(path, file string, restart bool) (string, error) {
 		return "", errors.New("Steam is not running. Start Steam, then click Play again")
 	}
 	// Start cs2.exe directly, like CS Demo Manager does: "steam.exe -applaunch" drops the options.
+	if info, err := os.Stat(filepath.Join(csgoDir, "console.log")); err == nil {
+		logOffset = info.Size()
+	}
 	exe := filepath.Join(csgoDir, "..", "bin", "win64", "cs2.exe")
-	if err := exec.Command(exe, "-novid", "+playdemo", dst).Start(); err != nil {
+	// A path relative to game/csgo, so it has no spaces: CS2 fails on some full paths.
+	// -condebug writes game/csgo/console.log, which the page shows to explain failures.
+	if err := exec.Command(exe, "-novid", "-condebug", "+playdemo", outDir+"/"+name).Start(); err != nil {
 		return "", err
 	}
 	return "starting CS2: " + name, nil
+}
+
+var (
+	logOffset int64 // console.log size before the last launch
+	demoLine  = regexp.MustCompile(`(?i)demo`)
+)
+
+// gameLog returns the demo-related console lines CS2 wrote since the last launch.
+func gameLog() []string {
+	b, _ := os.ReadFile(filepath.Join(csgoDir, "console.log"))
+	if int64(len(b)) >= logOffset {
+		b = b[logOffset:]
+	}
+	lines := []string{}
+	for _, l := range strings.Split(string(b), "\n") {
+		if demoLine.MatchString(l) {
+			lines = append(lines, strings.TrimSpace(l))
+		}
+	}
+	if len(lines) > 30 {
+		lines = lines[len(lines)-30:]
+	}
+	return lines
 }
 
 func running(image string) bool {
