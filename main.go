@@ -3,6 +3,7 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,8 @@ import (
 //go:embed index.html
 var page []byte
 
+var version = "dev" // set by release.sh with -ldflags "-X main.version=..."
+
 //go:embed logo.svg
 var logo []byte
 
@@ -40,6 +43,7 @@ var (
 
 func main() {
 	flag.Parse()
+	page = bytes.ReplaceAll(page, []byte("{{version}}"), []byte(version))
 	if *steamDir == "" {
 		*steamDir = findSteam()
 	}

@@ -6,6 +6,7 @@
   body { font: 15px system-ui, sans-serif; background: #15171c; color: #e6e6e6; max-width: 900px; margin: 0 auto; padding: 24px 16px; }
   h1 { font-size: 20px; margin: 0 0 16px; display: flex; align-items: center; gap: 10px; }
   h1 img { width: 32px; height: 32px; }
+  h1 small { font-size: 13px; font-weight: 400; }
   input { width: 100%; box-sizing: border-box; padding: 10px; font: inherit; background: #1f232b; color: inherit; border: 1px solid #333a46; border-radius: 6px; }
   .cols { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-top: 12px; }
   ul { list-style: none; margin: 0; padding: 0; }
@@ -19,7 +20,7 @@
   #msg.err { color: #ff7b72; }
   @media (max-width: 600px) { .cols { grid-template-columns: 1fr; } }
 </style>
-<h1><img src="/logo.svg" alt="">CS2 demos</h1>
+<h1><img src="/logo.svg" alt="">CS2 demos <small>{{version}}</small></h1>
 <input id="q" placeholder="Filter..." autofocus>
 <div class="cols">
   <ul id="demos"></ul>

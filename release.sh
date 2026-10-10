@@ -4,7 +4,7 @@
 set -eu
 version=$1
 exe="cs2-demo-$version.exe"
-GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o "$exe" .
+GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=$version" -o "$exe" .
 git tag "$version"
 git push origin "$version"
 gh release create "$version" "$exe" --title "$version" --notes "$2"
