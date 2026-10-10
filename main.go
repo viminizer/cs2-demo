@@ -78,7 +78,7 @@ func main() {
 
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
 	ln, err := net.Listen("tcp", addr)
-	openBrowser := exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://"+addr).Start
+	openBrowser := exec.Command("cmd", "/c", "start", "", "http://"+addr).Start // start follows the default browser setting
 	if err != nil {
 		// Probably already running: just show the open one.
 		openBrowser()
