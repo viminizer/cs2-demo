@@ -37,3 +37,14 @@ func TestZipListAndExtract(t *testing.T) {
 		t.Fatalf("shortName = %q", got)
 	}
 }
+
+func TestGameLog(t *testing.T) {
+	csgoDir = t.TempDir()
+	log := "old line\n[CommandLine] -novid +playdemo dl/x.dem\nloading\nCouldn't open dl/x.dem\n"
+	os.WriteFile(filepath.Join(csgoDir, "console.log"), []byte(log), 0o644)
+	logOffset = int64(len("old line\n"))
+	got := gameLog()
+	if len(got) != 3 || got[2] != "Couldn't open dl/x.dem" {
+		t.Fatalf("gameLog = %q", got)
+	}
+}

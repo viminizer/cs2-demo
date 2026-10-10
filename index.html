@@ -85,12 +85,12 @@ async function play(restart) {
 let logTimer;
 function watchLog() {
   clearInterval(logTimer);
-  $('log').textContent = 'Game log (demo lines):\nwaiting for CS2...';
+  $('log').textContent = 'Game log:\nwaiting for CS2...';
   const end = Date.now() + 120000;
   logTimer = setInterval(async () => {
     if (Date.now() > end) return clearInterval(logTimer);
     const lines = await api('/api/log').catch(() => []);
-    if (lines.length) $('log').textContent = 'Game log (demo lines):\n' + lines.join('\n');
+    if (lines.length) $('log').textContent = 'Game log:\n' + lines.join('\n');
   }, 2000);
 }
 $('play').onclick = () => play(false);

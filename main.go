@@ -99,16 +99,13 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-// openURL opens url in the browser the user picked for https links.
-// "start" alone opened Edge for a user whose default browser is Chrome.
+// openURL opens url in Chrome when it is installed, else in the default browser.
+// Windows kept opening Edge for a Chrome user, through both "start" and the registry.
 func openURL(url string) {
-	out, _ := exec.Command("reg", "query", `HKCU\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice`, "/v", "ProgId").Output()
-	if m := regexp.MustCompile(`ProgId\s+REG_SZ\s+(\S+)`).FindStringSubmatch(string(out)); m != nil {
-		out, _ = exec.Command("reg", "query", `HKCR\`+m[1]+`\shell\open\command`, "/ve").Output()
-		if m := regexp.MustCompile(`REG_SZ\s+"([^"]+\.exe)"`).FindStringSubmatch(string(out)); m != nil {
-			if exec.Command(m[1], url).Start() == nil {
-				return
-			}
+	for _, dir := range []string{os.Getenv("ProgramFiles"), os.Getenv("ProgramFiles(x86)"), os.Getenv("LocalAppData")} {
+		chrome := filepath.Join(dir, "Google", "Chrome", "Application", "chrome.exe")
+		if _, err := os.Stat(chrome); err == nil && dir != "" && exec.Command(chrome, url).Start() == nil {
+			return
 		}
 	}
 	exec.Command("cmd", "/c", "start", "", url).Start()
@@ -284,33 +281,32 @@ func play(path, file string, restart bool) (string, error) {
 		logOffset = info.Size()
 	}
 	exe := filepath.Join(csgoDir, "..", "bin", "win64", "cs2.exe")
-	// A path relative to game/csgo, so it has no spaces: CS2 fails on some full paths.
+	// -insecure matches CS Demo Manager: CS2 queued +playdemo without it and never ran it.
+	// The demo path is relative to game/csgo, so it has no spaces: CS2 fails on some full paths.
 	// -condebug writes game/csgo/console.log, which the page shows to explain failures.
-	if err := exec.Command(exe, "-novid", "-condebug", "+playdemo", outDir+"/"+name).Start(); err != nil {
+	if err := exec.Command(exe, "-insecure", "-novid", "-condebug", "+playdemo", outDir+"/"+name+".dem").Start(); err != nil {
 		return "", err
 	}
-	return "starting CS2: " + name, nil
+	return "Starting CS2 with " + name + ".\nCS2 runs in insecure mode, for demos only. Restart it from Steam before you play matches.", nil
 }
 
-var (
-	logOffset int64 // console.log size before the last launch
-	demoLine  = regexp.MustCompile(`(?i)demo`)
-)
+var logOffset int64 // console.log size before the last launch
 
-// gameLog returns the demo-related console lines CS2 wrote since the last launch.
+// gameLog returns the console lines CS2 wrote since the last launch, from the
+// first playdemo line on, so errors without the word "demo" show up too.
 func gameLog() []string {
 	b, _ := os.ReadFile(filepath.Join(csgoDir, "console.log"))
 	if int64(len(b)) >= logOffset {
 		b = b[logOffset:]
 	}
-	lines := []string{}
-	for _, l := range strings.Split(string(b), "\n") {
-		if demoLine.MatchString(l) {
-			lines = append(lines, strings.TrimSpace(l))
-		}
+	text := string(b)
+	i := strings.Index(text, "playdemo")
+	if i < 0 {
+		return []string{}
 	}
-	if len(lines) > 30 {
-		lines = lines[len(lines)-30:]
+	lines := strings.Split(strings.TrimSpace(text[strings.LastIndex(text[:i], "\n")+1:]), "\n")
+	if len(lines) > 40 {
+		lines = lines[len(lines)-40:]
 	}
 	return lines
 }
