@@ -1,3 +1,5 @@
+<img src="logo.svg" width="96" alt="cs2-demo logo">
+
 # cs2-demo
 
 Pick a downloaded CS2 demo in your browser and play it in the game. No more typing long demo names in the console.

@@ -26,6 +26,9 @@ import (
 //go:embed index.html
 var page []byte
 
+//go:embed logo.svg
+var logo []byte
+
 const (
 	netconPort = "2121"
 	outDir     = "dl" // demos are extracted to <csgo>/dl so playdemo gets a short path
@@ -50,6 +53,10 @@ func main() {
 	log.Printf("demos: %s\ncs2:   %s", *demoDir, csgoDir)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { w.Write(page) })
+	http.HandleFunc("/logo.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Write(logo)
+	})
 	http.HandleFunc("/api/demos", handle(func(r *http.Request) (any, error) { return listDemos(*demoDir) }))
 	http.HandleFunc("/api/files", handle(func(r *http.Request) (any, error) {
 		return listFiles(filepath.Join(*demoDir, filepath.Base(r.URL.Query().Get("demo"))))
