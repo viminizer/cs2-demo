@@ -7,8 +7,7 @@ Pick a downloaded CS2 demo in your browser and play it in the game. No more typi
 ## Install
 
 1. Download `cs2-demo.exe` from the [latest release](https://github.com/viminizer/cs2-demo/releases/latest).
-2. In Steam, open CS2 → Properties → Launch options, and add `-netconport 2121`.
-3. Double-click `cs2-demo.exe`. Windows may warn you because the file is not signed: click **More info → Run anyway**.
+2. Double-click `cs2-demo.exe`. Windows may warn you because the file is not signed: click **More info → Run anyway**.
 
 ## Use
 
@@ -16,7 +15,9 @@ Pick a downloaded CS2 demo in your browser and play it in the game. No more typi
 2. Pick a match. The right side lists the maps (`.dem` files) inside it.
 3. Pick a map and click **Play**.
 
-If CS2 is open, the demo loads in the running game. If not, the tool starts CS2 and loads the demo.
+If CS2 is closed, the tool starts it and loads the demo. Later demos load into that same running game.
+
+If you started CS2 from Steam yourself, the tool can't reach it. Click **Restart CS2 and play**, or add `-netconport 2121` to CS2's launch options in Steam so it always works.
 
 Demos are extracted to `game\csgo\dl\` with a short name. Delete that folder when it gets big.
 

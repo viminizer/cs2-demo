@@ -27,6 +27,7 @@
     <ul id="files"></ul>
     <button id="play" disabled>Play</button>
     <div id="msg"></div>
+    <button id="restart" hidden>Restart CS2 and play</button>
   </div>
 </div>
 <script>
@@ -36,7 +37,7 @@ const $ = id => document.getElementById(id);
 async function api(url, opts) {
   const r = await fetch(url, opts);
   const text = await r.text();
-  if (!r.ok) throw new Error(text);
+  if (!r.ok) throw Object.assign(new Error(text), { status: r.status });
   return JSON.parse(text);
 }
 function msg(text, err) { $('msg').textContent = text; $('msg').className = err ? 'err' : ''; }
@@ -67,13 +68,16 @@ async function pick(d) {
   } catch (e) { $('files').replaceChildren(); msg(e.message, true); }
 }
 
-$('play').onclick = async () => {
-  $('play').disabled = true; msg('Loading...');
+async function play(restart) {
+  $('play').disabled = true; $('restart').hidden = true;
+  msg(restart ? 'Restarting CS2...' : 'Loading...');
   try {
-    msg(await api('/api/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ demo: demo.name, file }) }));
-  } catch (e) { msg(e.message, true); }
+    msg(await api('/api/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ demo: demo.name, file, restart }) }));
+  } catch (e) { msg(e.message, true); $('restart').hidden = e.status !== 409; }
   $('play').disabled = false;
-};
+}
+$('play').onclick = () => play(false);
+$('restart').onclick = () => play(true);
 
 $('q').oninput = renderDemos;
 api('/api/demos').then(d => { demos = d; renderDemos(); }).catch(e => msg(e.message, true));

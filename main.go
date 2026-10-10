@@ -66,11 +66,14 @@ func main() {
 		if r.Method != http.MethodPost || r.Header.Get("Content-Type") != "application/json" {
 			return nil, errors.New("bad request")
 		}
-		var req struct{ Demo, File string }
+		var req struct {
+			Demo, File string
+			Restart    bool
+		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return nil, err
 		}
-		return play(filepath.Join(*demoDir, filepath.Base(req.Demo)), req.File)
+		return play(filepath.Join(*demoDir, filepath.Base(req.Demo)), req.File, req.Restart)
 	}))
 
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
@@ -106,6 +109,10 @@ func findSteam() string {
 func handle(f func(*http.Request) (any, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		v, err := f(r)
+		if errors.Is(err, errNoPort) {
+			http.Error(w, err.Error(), http.StatusConflict) // the UI offers a restart button
+			return
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -226,7 +233,10 @@ func shortName(file string) string {
 	return strings.Trim(unsafeChars.ReplaceAllString(strings.ToLower(base), "_"), "_")
 }
 
-func play(path, file string) (string, error) {
+var errNoPort = errors.New("CS2 was started without the console port, so the demo can't be sent to it. " +
+	"Restart CS2 from here, or add \"-netconport " + netconPort + "\" to CS2 launch options in Steam")
+
+func play(path, file string, restart bool) (string, error) {
 	name := shortName(filepath.Base(path)) + "_" + shortName(file)
 	dst := filepath.Join(csgoDir, outDir, name+".dem")
 	if _, err := os.Stat(dst); err != nil {
@@ -242,15 +252,30 @@ func play(path, file string) (string, error) {
 		_, err = conn.Write([]byte(cmd + "\n"))
 		return "sent to running game: " + cmd, err
 	}
-	if out, _ := exec.Command("tasklist", "/FI", "IMAGENAME eq cs2.exe", "/NH").Output(); strings.Contains(string(out), "cs2.exe") {
-		return "", errors.New("CS2 is running without the console port. Add \"-netconport " + netconPort +
-			"\" to CS2 launch options in Steam and restart the game once")
+	if cs2Running() {
+		if !restart {
+			return "", errNoPort
+		}
+		exec.Command("taskkill", "/F", "/IM", "cs2.exe").Run()
+		for i := 0; cs2Running(); i++ {
+			if i == 30 {
+				return "", errors.New("could not close CS2")
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		// ponytail: fixed wait for Steam to notice the game closed, poll Steam if 3s proves too short.
+		time.Sleep(3 * time.Second)
 	}
 	steam := filepath.Join(*steamDir, "steam.exe")
 	if err := exec.Command(steam, "-applaunch", "730", "-netconport", netconPort, "+"+cmd).Start(); err != nil {
 		return "", err
 	}
 	return "starting CS2: " + cmd, nil
+}
+
+func cs2Running() bool {
+	out, _ := exec.Command("tasklist", "/FI", "IMAGENAME eq cs2.exe", "/NH").Output()
+	return strings.Contains(string(out), "cs2.exe")
 }
 
 func extract(path, file, dst string) error {
