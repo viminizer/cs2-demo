@@ -1,40 +1,147 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CS2 demos</title>
 <link rel="icon" href="/logo.svg">
 <style>
-  body { font: 15px system-ui, sans-serif; background: #15171c; color: #e6e6e6; max-width: 900px; margin: 0 auto; padding: 24px 16px; }
-  h1 { font-size: 20px; margin: 0 0 16px; display: flex; align-items: center; gap: 10px; }
-  h1 img { width: 32px; height: 32px; }
-  h1 small { font-size: 13px; font-weight: 400; }
-  input { width: 100%; box-sizing: border-box; padding: 10px; font: inherit; background: #1f232b; color: inherit; border: 1px solid #333a46; border-radius: 6px; }
-  .cols { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-top: 12px; }
-  ul { list-style: none; margin: 0; padding: 0; }
-  li { padding: 8px 10px; border-radius: 6px; cursor: pointer; overflow-wrap: anywhere; }
-  li:hover { background: #262b35; }
-  li.on { background: #2f5d9e; }
-  small { color: #8a93a3; display: block; }
-  button { margin-top: 12px; width: 100%; padding: 12px; font: inherit; font-weight: 600; background: #d98a1e; color: #111; border: 0; border-radius: 6px; cursor: pointer; }
-  button:disabled { opacity: .4; cursor: default; }
-  #msg { margin-top: 12px; white-space: pre-wrap; }
-  #msg.err { color: #ff7b72; }
-  #log { margin-top: 12px; font: 12px ui-monospace, monospace; color: #8a93a3; white-space: pre-wrap; overflow-wrap: anywhere; }
-  @media (max-width: 600px) { .cols { grid-template-columns: 1fr; } }
+  :root {
+    --bg: #0b0d11;
+    --panel: #12151b;
+    --line: #232833;
+    --text: #e8e6e1;
+    --dim: #7d8594;
+    --accent: #ff9d2e;
+    --accent-2: #e2731b;
+    --err: #ff6b5e;
+    --ok: #7bd88f;
+    --display: Bahnschrift, "DIN Alternate", "Arial Narrow", sans-serif;
+    --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text); font: 15px/1.4 var(--display);
+    background:
+      radial-gradient(1200px 500px at 85% -10%, rgba(255,157,46,.10), transparent 60%),
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 100% 32px,
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 32px 100%,
+      var(--bg);
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px 0; }
+
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header img { width: 44px; height: 44px; }
+  h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-stretch: condensed; }
+  .ver { font: 12px var(--mono); color: var(--accent); border: 1px solid rgba(255,157,46,.4); padding: 2px 7px; border-radius: 3px; }
+  .folder { margin-left: auto; flex: 1 1 0; min-width: 0; text-align: right; font: 12px var(--mono); color: var(--dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; } /* rtl keeps the folder's end visible */
+
+  .grid { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-top: 22px; }
+  .grid > * { min-width: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column; min-height: 0; }
+  .panel-head { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .step { font: 700 12px var(--mono); color: #0b0d11; background: var(--accent); padding: 1px 6px; border-radius: 2px; }
+  .panel-head h2 { margin: 0; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; }
+  .count { margin-left: auto; font: 12px var(--mono); color: var(--dim); }
+  .search { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .search input { width: 100%; padding: 9px 12px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; outline: none; }
+  .search input:focus { border-color: var(--accent); }
+  .list { overflow-y: auto; max-height: calc(100vh - 330px); min-height: 220px; padding: 6px; }
+
+  .item {
+    display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: none; cursor: pointer;
+    border: 0; border-left: 3px solid transparent; border-radius: 3px; padding: 9px 12px; margin: 2px 0;
+    animation: rise .25s ease-out both;
+  }
+  .item:hover { background: rgba(255,255,255,.04); }
+  .item:focus-visible { outline: 1px solid var(--accent); }
+  .item.on { background: linear-gradient(90deg, rgba(255,157,46,.16), rgba(255,157,46,.03)); border-left-color: var(--accent); }
+  .item .t { display: block; font-size: 15px; overflow-wrap: anywhere; }
+  .item .m { display: block; margin-top: 2px; font: 12px var(--mono); color: var(--dim); }
+  .map .t { font-size: 20px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .map.on .t { color: var(--accent); }
+  .empty { padding: 28px 16px; color: var(--dim); text-align: center; }
+  @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
+
+  .bar {
+    position: sticky; bottom: 0; margin-top: 16px;
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+    background: rgba(11,13,17,.92); backdrop-filter: blur(6px); border-top: 1px solid var(--line);
+  }
+  .bar-in { max-width: 1060px; margin: 0 auto; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .pick { flex: 1; min-width: 200px; }
+  .pick .k { font: 11px var(--mono); color: var(--dim); letter-spacing: .12em; text-transform: uppercase; }
+  .pick .v { font-size: 18px; font-weight: 700; overflow-wrap: anywhere; }
+  .status { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 13px; color: var(--dim); }
+  .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+  .status:empty { display: none; }
+  .status.ok { color: var(--ok); } .status.err { color: var(--err); } .status.busy { color: var(--accent); }
+  .status.busy::before { animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .2; } }
+
+  .btn {
+    font: 700 16px var(--display); letter-spacing: .14em; text-transform: uppercase; cursor: pointer;
+    padding: 13px 30px; border-radius: 4px; border: 0; color: #120c04;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: 0 0 0 1px rgba(255,157,46,.3), 0 6px 24px -8px rgba(255,157,46,.6);
+  }
+  .btn:hover:not(:disabled) { filter: brightness(1.08); }
+  .btn:disabled { opacity: .35; cursor: default; box-shadow: none; }
+  .btn.ghost { background: none; color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+  details.log { max-width: 1060px; margin: 12px auto 0; border: 1px solid var(--line); border-radius: 4px; background: #07080b; }
+  details.log summary { cursor: pointer; padding: 7px 12px; font: 12px var(--mono); color: var(--dim); list-style: none; }
+  details.log summary::before { content: "▸ "; }
+  details.log[open] summary::before { content: "▾ "; }
+  details.log pre { margin: 0; padding: 0 12px 12px; max-height: 180px; overflow: auto; font: 12px/1.5 var(--mono); color: #b9c0cc; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; }
+    .list { max-height: 45vh; }
+    .folder { flex-basis: 100%; text-align: left; }
+    .bar { position: static; }
+    .btn { flex: 1; }
+  }
 </style>
-<h1><img src="/logo.svg" alt="">CS2 demos <small>{{version}}</small></h1>
-<input id="q" placeholder="Filter..." autofocus>
-<div class="cols">
-  <ul id="demos"></ul>
-  <div>
-    <ul id="files"></ul>
-    <button id="play" disabled>Play</button>
-    <div id="msg"></div>
-    <button id="restart" hidden>Restart CS2 and play</button>
-    <div id="log"></div>
+
+<div class="wrap">
+  <header>
+    <img src="/logo.svg" alt="">
+    <h1>CS2 demos</h1>
+    <span class="ver">{{version}}</span>
+    <span class="folder" title="Demo folder">{{folder}}</span>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="panel-head"><span class="step">1</span><h2>Match</h2><span class="count" id="count"></span></div>
+      <div class="search"><input id="q" placeholder="Filter matches..." autofocus></div>
+      <div class="list" id="demos"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><span class="step">2</span><h2>Map</h2></div>
+      <div class="list" id="files"><div class="empty">Pick a match first.</div></div>
+    </section>
   </div>
 </div>
+
+<div class="bar">
+  <div class="bar-in">
+    <div class="pick">
+      <div class="k">Selected</div>
+      <div class="v" id="pick">Nothing yet</div>
+      <div class="status" id="msg"></div>
+    </div>
+    <button class="btn ghost" id="restart" hidden>Restart CS2 and play</button>
+    <button class="btn" id="play" disabled>Play</button>
+  </div>
+  <details class="log" id="logbox" hidden>
+    <summary id="logsum">Game log</summary>
+    <pre id="log"></pre>
+  </details>
+</div>
+
 <script>
-let demos = [], demo = null, file = null;
+let demos = [], demo = null, file = null, files = [];
 const $ = id => document.getElementById(id);
 
 async function api(url, opts) {
@@ -43,59 +150,101 @@ async function api(url, opts) {
   if (!r.ok) throw Object.assign(new Error(text), { status: r.status });
   return JSON.parse(text);
 }
-function msg(text, err) { $('msg').textContent = text; $('msg').className = err ? 'err' : ''; }
+function msg(text, kind) { $('msg').textContent = text; $('msg').className = 'status ' + (kind || ''); }
 
-function item(label, sub, on, click) {
-  const li = document.createElement('li');
-  li.textContent = label;
-  if (sub) li.append(Object.assign(document.createElement('small'), { textContent: sub }));
-  li.className = on ? 'on' : '';
-  li.onclick = click;
-  return li;
+// "vitality-vs-1win.rar" -> "vitality vs 1win"
+const title = n => n.replace(/\.(dem|zip|rar)$/i, '').replace(/[-_]+/g, ' ');
+// "folder/vitality-vs-1win-m2-cache.dem" -> { map: "cache", rest: "vitality-vs-1win-m2" }
+function mapOf(f) {
+  const base = f.split(/[\\/]/).pop().replace(/\.dem$/i, '');
+  const parts = base.split(/[-_ ]+/);
+  return { map: parts.pop() || base, rest: parts.join(' ') };
 }
+function ago(d) {
+  const s = (Date.now() - new Date(d)) / 1000;
+  if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  if (s < 86400 * 30) return Math.round(s / 86400) + ' d ago';
+  return new Date(d).toLocaleDateString();
+}
+
+function item(t, m, on, click, i, cls = '') {
+  const b = document.createElement('button');
+  b.className = 'item ' + cls + (on ? ' on' : '');
+  b.style.animationDelay = Math.min(i, 15) * 18 + 'ms';
+  b.append(Object.assign(document.createElement('span'), { className: 't', textContent: t }));
+  if (m) b.append(Object.assign(document.createElement('span'), { className: 'm', textContent: m }));
+  b.onclick = click;
+  return b;
+}
+function empty(text) { return Object.assign(document.createElement('div'), { className: 'empty', textContent: text }); }
 
 function renderDemos() {
   const q = $('q').value.toLowerCase();
-  $('demos').replaceChildren(...demos.filter(d => d.name.toLowerCase().includes(q)).map(d =>
-    item(d.name, new Date(d.mod).toLocaleString() + ' - ' + (d.size / 1e6).toFixed(0) + ' MB', d === demo, () => pick(d))));
+  const shown = demos.filter(d => d.name.toLowerCase().includes(q));
+  $('count').textContent = shown.length + ' / ' + demos.length;
+  $('demos').replaceChildren(...(shown.length ? shown.map((d, i) =>
+    item(title(d.name), ago(d.mod) + '  ·  ' + (d.size / 1e6).toFixed(0) + ' MB', d === demo, () => pick(d), i))
+    : [empty(demos.length ? 'No match for this filter.' : 'No .dem, .zip or .rar files in the demo folder.')]));
+}
+
+function renderFiles() {
+  $('files').replaceChildren(...files.map((f, i) => {
+    const { map, rest } = mapOf(f);
+    return item(map, rest, f === file, () => { file = f; renderFiles(); update(); }, i, 'map');
+  }));
+}
+
+function update() {
+  $('play').disabled = !file;
+  $('pick').textContent = demo ? title(demo.name) + (file ? '  ·  ' + mapOf(file).map.toUpperCase() : '') : 'Nothing yet';
 }
 
 async function pick(d) {
-  demo = d; file = null; $('play').disabled = true; renderDemos(); msg('');
+  demo = d; file = null; files = []; renderDemos(); update(); msg('');
+  $('restart').hidden = true;
+  $('files').replaceChildren(empty('Reading archive...'));
   try {
-    const files = await api('/api/files?demo=' + encodeURIComponent(d.name));
-    const render = () => $('files').replaceChildren(...files.map(f =>
-      item(f, '', f === file, () => { file = f; $('play').disabled = false; render(); })));
-    if (files.length === 1) { file = files[0]; $('play').disabled = false; }
-    render();
-  } catch (e) { $('files').replaceChildren(); msg(e.message, true); }
+    files = await api('/api/files?demo=' + encodeURIComponent(d.name));
+    if (files.length === 1) file = files[0];
+    files.length ? renderFiles() : $('files').replaceChildren(empty('No .dem files inside.'));
+    update();
+  } catch (e) { $('files').replaceChildren(empty('Could not read this file.')); msg(e.message, 'err'); }
 }
 
 async function play(restart) {
   $('play').disabled = true; $('restart').hidden = true;
-  msg(restart ? 'Restarting CS2...' : 'Loading...');
+  msg(restart ? 'Restarting CS2...' : 'Extracting and starting...', 'busy');
   try {
-    msg(await api('/api/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ demo: demo.name, file, restart }) }));
+    msg(await api('/api/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ demo: demo.name, file, restart }) }), 'ok');
     watchLog();
-  } catch (e) { msg(e.message, true); $('restart').hidden = e.status !== 409; }
-  $('play').disabled = false;
-}
-
-// Show what CS2 says about the demo for 2 minutes after a launch.
-let logTimer;
-function watchLog() {
-  clearInterval(logTimer);
-  $('log').textContent = 'Game log:\nwaiting for CS2...';
-  const end = Date.now() + 120000;
-  logTimer = setInterval(async () => {
-    if (Date.now() > end) return clearInterval(logTimer);
-    const lines = await api('/api/log').catch(() => []);
-    if (lines.length) $('log').textContent = 'Game log:\n' + lines.join('\n');
-  }, 2000);
+  } catch (e) { msg(e.message, 'err'); $('restart').hidden = e.status !== 409; }
+  update();
 }
 $('play').onclick = () => play(false);
 $('restart').onclick = () => play(true);
 
+// Show what CS2 writes to its console for 2 minutes after a launch.
+let logTimer;
+function watchLog() {
+  clearInterval(logTimer);
+  $('logbox').hidden = false;
+  $('logsum').textContent = 'Game log  ·  waiting for CS2...';
+  $('log').textContent = '';
+  const end = Date.now() + 120000;
+  logTimer = setInterval(async () => {
+    if (Date.now() > end) return clearInterval(logTimer);
+    const lines = await api('/api/log').catch(() => []);
+    if (!lines.length) return;
+    $('logsum').textContent = 'Game log  ·  ' + lines.length + ' lines';
+    $('log').textContent = lines.join('\n');
+    $('log').scrollTop = $('log').scrollHeight;
+  }, 2000);
+}
+
 $('q').oninput = renderDemos;
-api('/api/demos').then(d => { demos = d; renderDemos(); }).catch(e => msg(e.message, true));
+addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== $('q')) { e.preventDefault(); $('q').focus(); }
+});
+api('/api/demos').then(d => { demos = d; renderDemos(); }).catch(e => msg(e.message, 'err'));
 </script>

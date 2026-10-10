@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net"
@@ -44,6 +45,7 @@ var (
 func main() {
 	flag.Parse()
 	page = bytes.ReplaceAll(page, []byte("{{version}}"), []byte(version))
+	page = bytes.ReplaceAll(page, []byte("{{folder}}"), []byte(html.EscapeString(*demoDir)))
 	if *steamDir == "" {
 		*steamDir = findSteam()
 	}
