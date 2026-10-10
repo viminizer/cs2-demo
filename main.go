@@ -29,10 +29,7 @@ var page []byte
 //go:embed logo.svg
 var logo []byte
 
-const (
-	netconPort = "2121"
-	outDir     = "dl" // demos are extracted to <csgo>/dl: a short, plain-ASCII path CS2 can always play
-)
+const outDir = "dl" // demos are extracted to <csgo>/dl: a short, plain-ASCII path CS2 can always play
 
 var (
 	demoDir  = flag.String("demos", filepath.Join(os.Getenv("USERPROFILE"), "Downloads"), "folder with downloaded demos")
@@ -109,7 +106,7 @@ func findSteam() string {
 func handle(f func(*http.Request) (any, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		v, err := f(r)
-		if errors.Is(err, errNoPort) {
+		if errors.Is(err, errRunning) {
 			http.Error(w, err.Error(), http.StatusConflict) // the UI offers a restart button
 			return
 		}
@@ -233,8 +230,9 @@ func shortName(file string) string {
 	return strings.Trim(unsafeChars.ReplaceAllString(strings.ToLower(base), "_"), "_")
 }
 
-var errNoPort = errors.New("CS2 was started without the console port, so the demo can't be sent to it. " +
-	"Restart CS2 from here, or add \"-netconport " + netconPort + "\" to CS2 launch options in Steam")
+// CS2 only opens a console port (-netconport) in Workshop Tools mode, so a running game can't
+// be told to play a demo. Like CS Demo Manager without its plugin, we restart CS2 with the demo.
+var errRunning = errors.New("CS2 is open. To load a demo, CS2 has to restart. Leave any match first")
 
 func play(path, file string, restart bool) (string, error) {
 	name := shortName(filepath.Base(path)) + "_" + shortName(file)
@@ -245,15 +243,9 @@ func play(path, file string, restart bool) (string, error) {
 		}
 	}
 
-	// Game running with -netconport: send the command over its console port.
-	if conn, err := net.DialTimeout("tcp", "127.0.0.1:"+netconPort, time.Second); err == nil {
-		defer conn.Close()
-		_, err = conn.Write([]byte(`playdemo "` + filepath.ToSlash(dst) + "\"\r\n"))
-		return "sent to running game: " + name, err
-	}
 	if running("cs2.exe") {
 		if !restart {
-			return "", errNoPort
+			return "", errRunning
 		}
 		exec.Command("taskkill", "/F", "/IM", "cs2.exe").Run()
 		for i := 0; running("cs2.exe"); i++ {
@@ -269,7 +261,7 @@ func play(path, file string, restart bool) (string, error) {
 	}
 	// Start cs2.exe directly, like CS Demo Manager does: "steam.exe -applaunch" drops the options.
 	exe := filepath.Join(csgoDir, "..", "bin", "win64", "cs2.exe")
-	if err := exec.Command(exe, "-novid", "-netconport", netconPort, "+playdemo", dst).Start(); err != nil {
+	if err := exec.Command(exe, "-novid", "+playdemo", dst).Start(); err != nil {
 		return "", err
 	}
 	return "starting CS2: " + name, nil

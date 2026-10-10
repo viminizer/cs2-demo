@@ -15,9 +15,9 @@ Pick a downloaded CS2 demo in your browser and play it in the game. No more typi
 2. Pick a match. The right side lists the maps (`.dem` files) inside it.
 3. Pick a map and click **Play**.
 
-If CS2 is closed, the tool starts it and loads the demo. Later demos load into that same running game.
+If CS2 is closed, the tool starts it and loads the demo.
 
-If you started CS2 from Steam yourself, the tool can't reach it. Click **Restart CS2 and play**, or add `-netconport 2121` to CS2's launch options in Steam so it always works.
+If CS2 is already open, click **Restart CS2 and play**. CS2 can't take a demo from outside while it runs, so the tool restarts it with the demo.
 
 Demos are extracted to `game\csgo\dl\` with a short name. Delete that folder when it gets big.
 
