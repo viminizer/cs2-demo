@@ -31,7 +31,7 @@ var logo []byte
 
 const (
 	netconPort = "2121"
-	outDir     = "dl" // demos are extracted to <csgo>/dl so playdemo gets a short path
+	outDir     = "dl" // demos are extracted to <csgo>/dl: a short, plain-ASCII path CS2 can always play
 )
 
 var (
@@ -244,38 +244,40 @@ func play(path, file string, restart bool) (string, error) {
 			return "", err
 		}
 	}
-	cmd := "playdemo " + outDir + "/" + name
 
 	// Game running with -netconport: send the command over its console port.
 	if conn, err := net.DialTimeout("tcp", "127.0.0.1:"+netconPort, time.Second); err == nil {
 		defer conn.Close()
-		_, err = conn.Write([]byte(cmd + "\n"))
-		return "sent to running game: " + cmd, err
+		_, err = conn.Write([]byte(`playdemo "` + filepath.ToSlash(dst) + "\"\r\n"))
+		return "sent to running game: " + name, err
 	}
-	if cs2Running() {
+	if running("cs2.exe") {
 		if !restart {
 			return "", errNoPort
 		}
 		exec.Command("taskkill", "/F", "/IM", "cs2.exe").Run()
-		for i := 0; cs2Running(); i++ {
+		for i := 0; running("cs2.exe"); i++ {
 			if i == 30 {
 				return "", errors.New("could not close CS2")
 			}
 			time.Sleep(500 * time.Millisecond)
 		}
-		// ponytail: fixed wait for Steam to notice the game closed, poll Steam if 3s proves too short.
-		time.Sleep(3 * time.Second)
+		time.Sleep(2 * time.Second) // let the old process release its files
 	}
-	steam := filepath.Join(*steamDir, "steam.exe")
-	if err := exec.Command(steam, "-applaunch", "730", "-netconport", netconPort, "+"+cmd).Start(); err != nil {
+	if !running("steam.exe") {
+		return "", errors.New("Steam is not running. Start Steam, then click Play again")
+	}
+	// Start cs2.exe directly, like CS Demo Manager does: "steam.exe -applaunch" drops the options.
+	exe := filepath.Join(csgoDir, "..", "bin", "win64", "cs2.exe")
+	if err := exec.Command(exe, "-novid", "-netconport", netconPort, "+playdemo", dst).Start(); err != nil {
 		return "", err
 	}
-	return "starting CS2: " + cmd, nil
+	return "starting CS2: " + name, nil
 }
 
-func cs2Running() bool {
-	out, _ := exec.Command("tasklist", "/FI", "IMAGENAME eq cs2.exe", "/NH").Output()
-	return strings.Contains(string(out), "cs2.exe")
+func running(image string) bool {
+	out, _ := exec.Command("tasklist", "/FI", "IMAGENAME eq "+image, "/NH").Output()
+	return strings.Contains(strings.ToLower(string(out)), image)
 }
 
 func extract(path, file, dst string) error {
